@@ -1,0 +1,183 @@
+---
+title: "OR568 Final_Project Data_Exploration"
+author: "Amy Lovas, Hannah Abraham, Kyle Smith, Sagar Goswami"
+date: "11/03/2022"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE}
+# loading required libraries
+
+library(here)
+library(ggplot2)
+library(tidyverse)
+library(GGally)
+library(corrplot)
+```
+
+# Data Cleaning and Pre-processing
+
+```{r}
+# loading the data
+df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
+
+# renaming the columns
+colnames(df) <- c("date", "bikecount", "hour", "temperature", "humidity", "windspeed", "visibility", "dewpointtemp", "solarradiation", "rainfall", "snowfall", "season", "holiday", "workhours")
+
+df
+```
+
+```{r}
+# # Data Encoding: Strategy 1
+# #converting categorical values into binary
+# df$holiday[df$holiday == 'Holiday'] <- 1
+# df$holiday[df$holiday == 'No Holiday'] <- 0
+# 
+# df$workhours[df$workhours == 'Yes'] <- 1
+# df$workhours[df$workhours == 'No'] <- 0
+# 
+# #need to transform 0 values into > 0 for log transformation
+# df$bikecount[df$bikecount == 0] <- as.numeric(0.000001)
+
+
+#df$season<- factor(df$season, levels = c("Winter", "Autumn", "Summer", "Spring"), labels 
+#=c(1,2,3,4))
+
+
+
+
+
+# Data Encoding: Strategy 2
+
+# changing the data types of columns
+df$date <- as.Date(df$date, "%m/%d/%Y")
+df$season <- as.factor(df$season)
+df$hour <- as.factor(df$hour)
+df$holiday <- as.factor(df$holiday)
+df$workhours <- as.factor(df$workhours)
+
+# TODO: Extract features from Date Column (Year, Month, DayOfYear)
+# TODO: Encode date features and hour column to cyclic functions
+```
+
+```{r}
+# Check for Null-Values in the Dataset
+df[is.na(df['date']),]
+```
+
+There are 5304/8760 Null values in the date column.
+
+```{r}
+df <- df[,-1]
+
+```
+
+# Data Exploration
+
+```{r}
+# Structure of the Dataset
+str(df)
+```
+
+```{r}
+# Statistical Summary of the dataset
+summary(df)
+```
+
+## Correlation matrix
+
+```{r fig.height=9, fig.width=16, message=FALSE, warning=FALSE}
+ggpairs(df[1:10], progress=FALSE, cardinality_threshold=30)
+```
+
+```{r fig.height=8, fig.width=8}
+corrplot(cor(df[,-c(1,3,12,13,14)]), method="circle")
+```
+
+A very high correlation between dewpoint_temperature and temperature is observed. We can potentially remove dew point variable, if further analysis is needed in future.
+
+```{r fig.height=6, fig.width=12}
+
+# Histogram
+ggplot(df) +
+  aes(x = bikecount) +
+  geom_density(adjust = 0.5, fill = "#4682B4") +
+  labs(
+    x = "Bike Rentals",
+    y = "Frequency",
+    title = "Bike Rental Distribution in each season",
+    caption = "Data: Seoul Bike Sharing"
+  ) +
+  theme_gray() +
+  theme(
+    plot.title = element_text(size = 18L,
+    face = "bold",
+    hjust = 0.5)
+  ) +
+  facet_wrap(vars(season))
+
+# Box-Plot
+ggplot(df) +
+ aes(x = "", y = bikecount) +
+ geom_boxplot(fill = "#4682B4") +
+ labs(y = "Bike Rentals", title = "Spread of Bike Rentals by seasons", 
+ caption = "Data: Seoul Bike Sharing") +
+ coord_flip() +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, 
+ face = "bold", hjust = 0.5)) +
+ facet_wrap(vars(season), nrow = 4L)
+
+
+# Temperature in last 6 months
+df %>%
+ filter(date >= "2018-06-30" & date <= "2018-12-11" & !is.na(date)) %>%
+ ggplot() +
+ aes(x = date, y = temperature) +
+ geom_point(shape = "circle", size = 1.5, colour = "#112446") +
+ labs(title = "Recorded Temperature in the last 6 months",
+      subtitle = "What the fuck does this supposed to mean ???",
+      caption = "Data: Seoul Bike Sharing") +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, face = "bold", hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+
+
+# Bike-Count based on No/Holidays
+ggplot(df) +
+ aes(x = "", y = bikecount) +
+ geom_boxplot(fill = "#4682B4") +
+ labs(y = "Bike Rentals", title = "Spread of Bike Rentals by holidays", 
+ caption = "Data: Seoul Bike Sharing") +
+ coord_flip() +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, 
+ face = "bold", hjust = 0.5)) +
+ facet_wrap(vars(holiday), nrow = 4L)
+```
+
+```{r}
+# Bike counts based on temperature, broken down by season 
+
+# histogram 
+ggplot(df, aes(x=temperature)) + 
+  geom_histogram(color="black", fill="white") + 
+  facet_wrap(~season) +
+  labs(x= 'Temperature', title='Bike Counts Based on Temperature', caption="Temperature is measured in celcius") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+
+# box plot 
+ggplot(df, aes(x=temperature, y=bikecount)) + 
+  geom_boxplot() + facet_wrap(~season)
+
+# bike count based on working/none working hour 
+ggplot(data=df, aes(workhours)) + 
+  geom_bar(fill="steelblue", width=0.3) + 
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Work/Non-Work Hours', caption="0 indicates off work hour, 1 indicates work hour") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+
+# bike rentals based on holiday/no holiday 
+ggplot(data=df, aes(holiday)) + 
+  geom_bar(fill="steelblue", width=0.3) + 
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Holiday/No Holiday', caption="0 indicates no holiday, 1 indicates holiday") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+```
