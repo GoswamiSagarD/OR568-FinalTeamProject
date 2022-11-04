@@ -1,0 +1,354 @@
+---
+title: "OR 568 Final Project"
+author: "Amy Lovas, Hannah Abraham, Kyle Smith, Sagar Goswami"
+date: "10/29/2022"
+output: html_document
+---
+
+```{r message=FALSE, warning=FALSE}
+# loading required libraries
+
+library(here)
+library(ggplot2)
+library(tidyverse)
+library(GGally)
+library(corrplot)
+library(psych)
+library(leaps)
+library(caret)
+library(glmnet)
+```
+
+# Data Cleaning and Pre-processing
+
+```{r}
+# loading the data
+df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
+
+# renaming the columns
+colnames(df) <- c("date", "bikecount", "hour", "temperature", "humidity", "windspeed", "visibility", "dewpointtemp", "solarradiation", "rainfall", "snowfall", "season", "holiday", "workhours")
+
+df
+```
+
+```{r}
+# Data Encoding: Strategy 1
+#converting categorical values into binary 
+df$holiday[df$holiday == 'Holiday'] <- 1
+df$holiday[df$holiday == 'No Holiday'] <- 0
+
+df$workhours[df$workhours == 'Yes'] <- 1
+df$workhours[df$workhours == 'No'] <- 0
+
+#need to transform 0 values into > 0 for log transformation 
+df$bikecount[df$bikecount == 0] <- as.numeric(0.000001)
+
+#df$season<- factor(df$season, levels = c("Winter", "Autumn", "Summer", "Spring"), labels 
+#=c(1,2,3,4))
+
+
+
+
+
+# Data Encoding: Strategy 2
+
+# changing the data types of columns
+# df$date <- as.Date(df$date, "%m/%d/%Y")
+# df$season <- as.factor(df$season)
+# df$holiday <- as.factor(df$holiday)
+# df$workhours <- as.factor(df$workhours)
+
+# TODO: Extract features from Date Column (Year, Month, DayOfYear)
+# TODO: Encode date features and hour column to cyclic functions
+```
+
+```{r}
+#date variable is removed as it was messing up the linear model 
+# removing date values as it doesn't seem significant enough to keep it in our data unless we're doing time series analysis 
+df <- df[,-1]
+```
+
+```{r}
+# Check for Null-Values in the Dataset
+sum(is.na(df))
+```
+
+# Data Exploration
+
+```{r}
+# Structure of the Dataset
+str(df)
+```
+
+```{r}
+# Statistical Summary of the dataset
+summary(df)
+```
+
+## Correlation matrix
+
+```{r fig.height=9, fig.width=16}
+ggpairs(df[1:10], progress=FALSE)
+```
+
+```{r fig.height=8, fig.width=8}
+corrplot(cor(df[2:10]), method="circle")
+```
+
+A very high correlation between dew point temperature and temperature is observed. We can potentially remove dew point variable, if further analysis is needed in future.
+
+```{r fig.height=6, fig.width=12}
+
+
+
+# Histogram
+ggplot(df) +
+  aes(x = bikecount) +
+  geom_density(adjust = 0.5, fill = "#4682B4") +
+  labs(
+    x = "Bike Rentals",
+    y = "Frequency",
+    title = "Bike Rental Distribution in each season",
+    caption = "Data: Seoul Bike Sharing"
+  ) +
+  theme_gray() +
+  theme(
+    plot.title = element_text(size = 18L,
+    face = "bold",
+    hjust = 0.5)
+  ) +
+  facet_wrap(vars(season))
+
+# Box-Plot
+
+library(ggplot2)
+
+ggplot(df) +
+ aes(x = "", y = bikecount) +
+ geom_boxplot(fill = "#4682B4") +
+ labs(y = "Bike Rentals", title = "Spread of Bike Rentals by seasons", 
+ caption = "Data: Seoul Bike Sharing") +
+ coord_flip() +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, 
+ face = "bold", hjust = 0.5)) +
+ facet_wrap(vars(season), nrow = 4L)
+
+
+# Bike-Count based on Non/Working hours
+ggplot(df) +
+ aes(x = "", y = bikecount) +
+ geom_boxplot(fill = "#4682B4") +
+ labs(y = "Bike Rentals", title = "Spread of Bike Rentals by working hours", 
+ caption = "Data: Seoul Bike Sharing") +
+ coord_flip() +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, 
+ face = "bold", hjust = 0.5)) +
+ facet_wrap(vars(workhours), nrow = 4L)
+
+# Bike-Count based on No/Holidays
+ggplot(df) +
+ aes(x = "", y = bikecount) +
+ geom_boxplot(fill = "#4682B4") +
+ labs(y = "Bike Rentals", title = "Spread of Bike Rentals by holidays", 
+ caption = "Data: Seoul Bike Sharing") +
+ coord_flip() +
+ theme_gray() +
+ theme(plot.title = element_text(size = 18L, 
+ face = "bold", hjust = 0.5)) +
+ facet_wrap(vars(holiday), nrow = 4L)
+```
+
+```{r}
+# Bike counts based on temperature, broken down by season 
+
+# histogram 
+ggplot(df, aes(x=temperature)) + 
+  geom_histogram(color="black", fill="white") + 
+  facet_wrap(~season) +
+  labs(x= 'Temperature', title='Bike Counts Based on Temperature', caption="Temperature is measured in celcius") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+
+# box plot 
+ggplot(df, aes(x=temperature, y=bikecount)) + 
+  geom_boxplot() + facet_wrap(~season)
+
+# bike count based on working/none working hour 
+ggplot(data=df, aes(workhours)) + 
+  geom_bar(fill="steelblue", width=0.3) + 
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Work/Non-Work Hours', caption="0 indicates off work hour, 1 indicates work hour") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+
+# bike rentals based on holiday/no holiday 
+ggplot(data=df, aes(holiday)) + 
+  geom_bar(fill="steelblue", width=0.3) + 
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Holiday/No Holiday', caption="0 indicates no holiday, 1 indicates holiday") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+```
+
+# Data Analysis
+
+```{r}
+
+```
+
+```{r}
+#date variable is removed as it was messing up the linear model 
+
+#model w/o log transformation
+lm1 <- lm(bikecount~., data=df)
+print(strrep("#",100))
+summary(lm1)
+
+#model with log transformation
+lm.log <- lm(log(bikecount)~., data=df)
+print(strrep("#",100))
+summary(lm.log)
+```
+
+```{r}
+par(mfrow=c(2,2)) # dividing the plot space in to 2x2 space
+plot(lm1)
+
+par(mfrow=c(2,2)) # dividing the plot space in to 2x2 space
+plot(lm.log)
+
+#influential points can potentially be removed 
+```
+
+Best subset selection
+
+```{r}
+reg.fit.best <- regsubsets(bikecount~., df, nvmax=14)
+reg.summ <- summary(reg.fit.best)
+```
+
+```{r}
+which.max(reg.summ$adjr2)
+#indicating 14 variables will produce the best model before log transformation
+
+```
+
+```{r}
+predict.regsubsets = function(object, newdata, id, ...){
+  form=as.formula(object$call[[2]])
+  mat=model.matrix(form, newdata)
+  coefi=coef(object, id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+```
+
+#We want to verify whether that's true by doing cross validation to select the best model
+
+Cross validation with k=5
+
+```{r}
+k=5 
+
+set.seed(53489)
+
+folds=sample(1:k,nrow(df),replace=TRUE)
+cv.errors=matrix(NA,k,(ncol(df)-1), dimnames=list(NULL, paste(1:(ncol(df)-1)))) # Place holder for errors
+
+# write a for loop that performs cross-validation
+for(j in 1:k){
+  best.fit=regsubsets(bikecount~., data=df[folds!=j,], nvmax=(ncol(df)-1))
+  
+  for(i in 1:(ncol(df)-1)){
+    pred = predict(best.fit, df[folds==j,], id=i)
+    cv.errors[j,i] = mean( (df$bikecount[folds==j]-pred)^2 )
+  }
+}
+```
+
+```{r}
+mean.cv.errors=apply(cv.errors, 2, mean)# Column average
+par(mfrow=c(1,1))
+plot(mean.cv.errors ,type="b")
+```
+
+```{r}
+regfit.full=regsubsets(bikecount~.,df, nvmax = 13) 
+coef(regfit.full,which.min(mean.cv.errors))
+```
+
+Cross validation with k=10
+
+```{r}
+k=10 
+
+set.seed(53489)
+
+folds=sample(1:k,nrow(df),replace=TRUE)
+cv.errors=matrix(NA,k,(ncol(df)-1), dimnames=list(NULL, paste(1:(ncol(df)-1)))) # Place holder for errors
+
+# write a for loop that performs cross-validation
+for(j in 1:k){
+  best.fit=regsubsets(bikecount~., data=df[folds!=j,], nvmax=(ncol(df)-1))
+  
+  for(i in 1:(ncol(df)-1)){
+    pred = predict(best.fit, df[folds==j,], id=i)
+    cv.errors[j,i] = mean( (df$bikecount[folds==j]-pred)^2 )
+  }
+}
+```
+
+```{r}
+mean.cv.errors=apply(cv.errors, 2, mean)# Column average
+par(mfrow=c(1,1))
+plot(mean.cv.errors ,type="b")
+```
+
+```{r}
+regfit.full=regsubsets(bikecount~., df, nvmax = 13) 
+coef(regfit.full,which.min(mean.cv.errors))
+```
+
+```{r}
+fit_5f = lm(bikecount~.-visibility, data = df)# model from 5-Fold CV
+summary(fit_5f)
+```
+
+Train/test data
+
+```{r}
+set.seed(3)
+
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(0.7,0.3))
+train  <- df[sample, ]
+test   <- df[!sample, ]
+
+```
+
+Predicted Model
+
+```{r}
+lm.train <- lm(bikecount~.-visibility, data=train)
+lm.pred <- predict(lm.train, test)
+mean((test$Apps - lm.pred)^2)
+(lin_info <- postResample(lm.pred, test$bikecount))
+
+```
+
+Lasso
+
+```{r}
+set.seed (3)
+x <- data.matrix(train[,-1])
+y <- data.matrix(train$bikecount) #response variable 
+
+model1<- glmnet(x,y,alpha=1)
+
+cv.out=cv.glmnet(x, y, alpha=1)
+
+bestlam.lasso=cv.out$lambda.min
+bestlam.lasso # the best lambda
+
+lasso.pred <- predict(model1,s=bestlam.lasso,newx=data.matrix(test[,-1]))
+
+mean((lasso.pred-test$bikecount)^2)
+
+(lin_info <- postResample(lasso.pred, test$bikecount))
+```
