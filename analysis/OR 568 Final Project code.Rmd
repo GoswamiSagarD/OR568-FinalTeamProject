@@ -34,11 +34,11 @@ df
 ```{r}
 # Data Encoding: Strategy 1
 #converting categorical values into binary 
-df$holiday[df$holiday == 'Holiday'] <- 1
-df$holiday[df$holiday == 'No Holiday'] <- 0
+#df$holiday[df$holiday == 'Holiday'] <- 1
+#df$holiday[df$holiday == 'No Holiday'] <- 0
 
-df$workhours[df$workhours == 'Yes'] <- 1
-df$workhours[df$workhours == 'No'] <- 0
+#df$workhours[df$workhours == 'Yes'] <- 1
+#df$workhours[df$workhours == 'No'] <- 0
 
 #need to transform 0 values into > 0 for log transformation 
 df$bikecount[df$bikecount == 0] <- as.numeric(0.000001)
@@ -53,10 +53,10 @@ df$bikecount[df$bikecount == 0] <- as.numeric(0.000001)
 # Data Encoding: Strategy 2
 
 # changing the data types of columns
-# df$date <- as.Date(df$date, "%m/%d/%Y")
-# df$season <- as.factor(df$season)
-# df$holiday <- as.factor(df$holiday)
-# df$workhours <- as.factor(df$workhours)
+ #df$date <- as.Date(df$date, "%m/%d/%Y")
+ df$season <- as.factor(df$season)
+ df$holiday <- as.factor(df$holiday)
+ df$workhours <- as.factor(df$workhours)
 
 # TODO: Extract features from Date Column (Year, Month, DayOfYear)
 # TODO: Encode date features and hour column to cyclic functions
@@ -190,21 +190,17 @@ ggplot(data=df, aes(holiday)) +
 # Data Analysis
 
 ```{r}
-
-```
-
-```{r}
 #date variable is removed as it was messing up the linear model 
 
 #model w/o log transformation
 lm1 <- lm(bikecount~., data=df)
 print(strrep("#",100))
-summary(lm1)
+summary(lm1) #visibility variable is not significant in a simple linear regression model, however, the adjusted r-square is 0.5497. Not very good. 
 
 #model with log transformation
 lm.log <- lm(log(bikecount)~., data=df)
 print(strrep("#",100))
-summary(lm.log)
+summary(lm.log) #remove variables with p-value > 0.05 such as, windspeed, visibility, solarradiation, and snowfall. Now we will confirm to remove these variables using best subset and cross validation  
 ```
 
 ```{r}
@@ -215,12 +211,20 @@ par(mfrow=c(2,2)) # dividing the plot space in to 2x2 space
 plot(lm.log)
 
 #influential points can potentially be removed 
+df<- df[c(-3998, -8233, -7416, -5035, -6502),]
+fit.lm <- lm(log(bikecount)~., data=df)
+print(strrep("#",100))
+summary(fit.lm)
+
+par(mfrow=c(2,2)) # dividing the plot space in to 2x2 space
+plot(fit.lm)
 ```
 
 Best subset selection
 
+Best subset selection will be used to verify that the non-statistically significant variable remove will produce the highest adjusted r-square value 
 ```{r}
-reg.fit.best <- regsubsets(bikecount~., df, nvmax=14)
+reg.fit.best <- regsubsets(log(bikecount)~., df, nvmax=14)
 reg.summ <- summary(reg.fit.best)
 ```
 
@@ -254,11 +258,11 @@ cv.errors=matrix(NA,k,(ncol(df)-1), dimnames=list(NULL, paste(1:(ncol(df)-1)))) 
 
 # write a for loop that performs cross-validation
 for(j in 1:k){
-  best.fit=regsubsets(bikecount~., data=df[folds!=j,], nvmax=(ncol(df)-1))
+  best.fit=regsubsets(log(bikecount)~., data=df[folds!=j,], nvmax=(ncol(df)-1))
   
   for(i in 1:(ncol(df)-1)){
     pred = predict(best.fit, df[folds==j,], id=i)
-    cv.errors[j,i] = mean( (df$bikecount[folds==j]-pred)^2 )
+    cv.errors[j,i] = mean( (log(df$bikecount)[folds==j]-pred)^2 )
   }
 }
 ```
@@ -274,41 +278,10 @@ regfit.full=regsubsets(bikecount~.,df, nvmax = 13)
 coef(regfit.full,which.min(mean.cv.errors))
 ```
 
-Cross validation with k=10
 
 ```{r}
-k=10 
-
-set.seed(53489)
-
-folds=sample(1:k,nrow(df),replace=TRUE)
-cv.errors=matrix(NA,k,(ncol(df)-1), dimnames=list(NULL, paste(1:(ncol(df)-1)))) # Place holder for errors
-
-# write a for loop that performs cross-validation
-for(j in 1:k){
-  best.fit=regsubsets(bikecount~., data=df[folds!=j,], nvmax=(ncol(df)-1))
-  
-  for(i in 1:(ncol(df)-1)){
-    pred = predict(best.fit, df[folds==j,], id=i)
-    cv.errors[j,i] = mean( (df$bikecount[folds==j]-pred)^2 )
-  }
-}
-```
-
-```{r}
-mean.cv.errors=apply(cv.errors, 2, mean)# Column average
-par(mfrow=c(1,1))
-plot(mean.cv.errors ,type="b")
-```
-
-```{r}
-regfit.full=regsubsets(bikecount~., df, nvmax = 13) 
-coef(regfit.full,which.min(mean.cv.errors))
-```
-
-```{r}
-fit_5f = lm(bikecount~.-visibility, data = df)# model from 5-Fold CV
-summary(fit_5f)
+fit_5cv = lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-windspeed, data = df)# model from 5-Fold CV
+summary(fit_5cv)
 ```
 
 Train/test data
@@ -325,10 +298,11 @@ test   <- df[!sample, ]
 Predicted Model
 
 ```{r}
-lm.train <- lm(bikecount~.-visibility, data=train)
+lm.train <- lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-windspeed, data = train)
 lm.pred <- predict(lm.train, test)
-mean((test$Apps - lm.pred)^2)
-(lin_info <- postResample(lm.pred, test$bikecount))
+
+(lin_info <- postResample(lm.pred, log(test$bikecount)))
+
 
 ```
 
