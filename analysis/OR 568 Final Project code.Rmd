@@ -17,6 +17,7 @@ library(psych)
 library(leaps)
 library(caret)
 library(glmnet)
+
 ```
 
 # Data Cleaning and Pre-processing
@@ -98,8 +99,6 @@ corrplot(cor(df[2:10]), method="circle")
 A very high correlation between dew point temperature and temperature is observed. We can potentially remove dew point variable, if further analysis is needed in future.
 
 ```{r fig.height=6, fig.width=12}
-
-
 
 # Histogram
 ggplot(df) +
@@ -289,7 +288,7 @@ Train/test data
 ```{r}
 set.seed(3)
 
-sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(0.7,0.3))
+sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(0.8,0.2))
 train  <- df[sample, ]
 test   <- df[!sample, ]
 
@@ -301,12 +300,20 @@ Predicted Model
 lm.train <- lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-windspeed, data = train)
 lm.pred <- predict(lm.train, test)
 
-(lin_info <- postResample(lm.pred, log(test$bikecount)))
 
+lm2 <- lm(log(bikecount)~., data = train)
+lm2.pred <- predict(lm2, test)
 
+(lin_info <- postResample(lm2.pred, log(test$bikecount))) #with all variables
+(lin_info <- postResample(lm.pred, log(test$bikecount)))  #with 10 variables
+summary(lm.train)
+summary(lm2)
+
+ 
 ```
 
-Lasso
+
+Lasso (we might not need to conduct lasso regression)
 
 ```{r}
 set.seed (3)
@@ -326,3 +333,42 @@ mean((lasso.pred-test$bikecount)^2)
 
 (lin_info <- postResample(lasso.pred, test$bikecount))
 ```
+
+
+Poisson Regression 
+```{r}
+df$bikecount[df$bikecount == 0.000001] <- as.numeric(0) #switching 0.000001 back to 0 
+
+pois.reg <- glm(bikecount~.-workhours, family="poisson", data=df) #workhours isnt statistically significant 
+summary(pois.reg)
+
+```
+
+```{r}
+#Overdispesion test 
+
+n=length(pois.reg$fitted.values)
+p = 10 # 10 Predictor Variables.
+D = sum(residuals(pois.reg, type="deviance")^2)
+phi = D/(n-p-1)
+print(phi)
+
+#not exactly sure how to interpret this tbh
+#one of the assumptions to poisson regression is that the mean and variance of the model is equal, else, overdispersion may happen 
+```
+Chi-square test 
+```{r}
+pchisq(2126348,8741, lower.tail=FALSE) #p-value = 0, which is smaller than the significance level of 0.05. We can conclude that the data doesn't fits the model reasonably well.
+
+```
+
+Goodness of fit test 
+```{r}
+#residual deviance and degree of freedom is used to assess goodness of fit
+
+d <- n-p-1 #degree of freedom 
+c(deviance(pois.reg), 1-pchisq(deviance(pois.reg),d)) #p-value is < 0.05, we fail to reject the null hypothesis that the model is not a good fit 
+
+```
+
+
