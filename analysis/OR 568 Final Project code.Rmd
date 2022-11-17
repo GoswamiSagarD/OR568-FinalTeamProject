@@ -188,18 +188,27 @@ ggplot(data=df, aes(holiday)) +
 
 # Data Analysis
 
+
+Based on linked features, can we predict how often bike share services will be used on certain days? 
+1. conduct logistic regression/random forest/XGboost/Bagging for holiday/no holiday variable or workhours/none workhours 
+2. linear regression to predict bike counts 
+
 ```{r}
-#date variable is removed as it was messing up the linear model 
+df2 <- readRDS(here("data", "SeoulaBikeData_clean.rds"))
+```
+
+Linear regression to predict bike counts 
+```{r}
 
 #model w/o log transformation
-lm1 <- lm(bikecount~., data=df)
+lm1 <- lm(bikecount~., data=df2)
 print(strrep("#",100))
 summary(lm1) #visibility variable is not significant in a simple linear regression model, however, the adjusted r-square is 0.5497. Not very good. 
 
 #model with log transformation
-lm.log <- lm(log(bikecount)~., data=df)
+lm.log <- lm(log(bikecount)~., data=df2)
 print(strrep("#",100))
-summary(lm.log) #remove variables with p-value > 0.05 such as, windspeed, visibility, solarradiation, and snowfall. Now we will confirm to remove these variables using best subset and cross validation  
+summary(lm.log) #remove variables with p-value > 0.05 such as, windspeed, visibility, solarradiation,monthday, month, yearday, and snowfall. Now we will confirm to remove these variables using best subset and cross validation  
 ```
 
 ```{r}
@@ -223,7 +232,7 @@ Best subset selection
 
 Best subset selection will be used to verify that the non-statistically significant variable remove will produce the highest adjusted r-square value 
 ```{r}
-reg.fit.best <- regsubsets(log(bikecount)~., df, nvmax=14)
+reg.fit.best <- regsubsets(log(bikecount)~., df2, nvmax=14)
 reg.summ <- summary(reg.fit.best)
 ```
 
@@ -252,16 +261,16 @@ k=5
 
 set.seed(53489)
 
-folds=sample(1:k,nrow(df),replace=TRUE)
-cv.errors=matrix(NA,k,(ncol(df)-1), dimnames=list(NULL, paste(1:(ncol(df)-1)))) # Place holder for errors
+folds=sample(1:k,nrow(df2),replace=TRUE)
+cv.errors=matrix(NA,k,(ncol(df2)-1), dimnames=list(NULL, paste(1:(ncol(df2)-1)))) # Place holder for errors
 
 # write a for loop that performs cross-validation
 for(j in 1:k){
-  best.fit=regsubsets(log(bikecount)~., data=df[folds!=j,], nvmax=(ncol(df)-1))
+  best.fit=regsubsets(log(bikecount)~., data=df2[folds!=j,], nvmax=(ncol(df2)-1))
   
   for(i in 1:(ncol(df)-1)){
-    pred = predict(best.fit, df[folds==j,], id=i)
-    cv.errors[j,i] = mean( (log(df$bikecount)[folds==j]-pred)^2 )
+    pred = predict(best.fit, df2[folds==j,], id=i)
+    cv.errors[j,i] = mean( (log(df2$bikecount)[folds==j]-pred)^2 )
   }
 }
 ```
@@ -273,13 +282,13 @@ plot(mean.cv.errors ,type="b")
 ```
 
 ```{r}
-regfit.full=regsubsets(bikecount~.,df, nvmax = 13) 
+regfit.full=regsubsets(bikecount~.,df2, nvmax = 18) 
 coef(regfit.full,which.min(mean.cv.errors))
 ```
 
 
 ```{r}
-fit_5cv = lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-windspeed, data = df)# model from 5-Fold CV
+fit_5cv = lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-month-yearday-monthday, data = df2)# model from 5-Fold CV
 summary(fit_5cv)
 ```
 
