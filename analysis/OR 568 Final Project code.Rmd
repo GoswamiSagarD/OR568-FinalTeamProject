@@ -17,7 +17,7 @@ library(psych)
 library(leaps)
 library(caret)
 library(glmnet)
-
+library(randomForest)
 ```
 
 # Data Cleaning and Pre-processing
@@ -381,3 +381,20 @@ c(deviance(pois.reg), 1-pchisq(deviance(pois.reg),d)) #p-value is < 0.05, we fai
 ```
 
 
+
+Regression Random Forest to predict bike count
+
+Used training/testing previously used
+```{r}
+rf.count = randomForest(bikecount ~., data= train, type = 'regression')
+```
+```{r}
+varImpPlot(rf.count)
+```
+Hour and temperature are the most important, with season and humidity coming up next, but it is clear that hour and temperature are significantly more important. 
+
+```{r}
+rf.pred = predict(rf.count, test)
+sqrt(mean((test$bikecount - rf.pred)^2))
+```
+Best performance so far using basic inputs!!
