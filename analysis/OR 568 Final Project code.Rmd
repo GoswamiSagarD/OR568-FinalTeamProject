@@ -297,30 +297,29 @@ Train/test data
 ```{r}
 set.seed(3)
 
-sample <- sample(c(TRUE, FALSE), nrow(df), replace=TRUE, prob=c(0.8,0.2))
-train  <- df[sample, ]
-test   <- df[!sample, ]
+sample <- sample(c(TRUE, FALSE), nrow(df2), replace=TRUE, prob=c(0.8,0.2))
+train  <- df2[sample, ]
+test   <- df2[!sample, ]
 
 ```
 
 Predicted Model
 
 ```{r}
-lm.train <- lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-windspeed, data = train)
-lm.pred <- predict(lm.train, test)
-
-
-lm2 <- lm(log(bikecount)~., data = train)
-lm2.pred <- predict(lm2, test)
-
-(lin_info <- postResample(lm2.pred, log(test$bikecount))) #with all variables
-(lin_info <- postResample(lm.pred, log(test$bikecount)))  #with 10 variables
-summary(lm.train)
-summary(lm2)
-
- 
+lm <- lm(log(bikecount)~.-visibility-snowfall-dewpointtemp-month-yearday-monthday, train)
+summary(lm)
 ```
 
+```{r}
+pred = predict(lm, train, type = 'response')
+pred.test = predict(lm, test, type = 'response')
+
+```
+
+```{r}
+postResample(exp(pred.test), test$bikecount)
+postResample(exp(pred), train$bikecount)
+```
 
 Lasso (we might not need to conduct lasso regression)
 
