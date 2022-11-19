@@ -345,9 +345,9 @@ mean((lasso.pred-test$bikecount)^2)
 
 Poisson Regression 
 ```{r}
-df$bikecount[df$bikecount == 0.000001] <- as.numeric(0) #switching 0.000001 back to 0 
+df2$bikecount[df2$bikecount == 0.000001] <- as.numeric(0) #switching 0.000001 back to 0 
 
-pois.reg <- glm(bikecount~.-workhours, family="poisson", data=df) #workhours isnt statistically significant 
+pois.reg <- glm(bikecount~., family="poisson", data=df2)
 summary(pois.reg)
 
 ```
@@ -366,7 +366,7 @@ print(phi)
 ```
 Chi-square test 
 ```{r}
-pchisq(2126348,8741, lower.tail=FALSE) #p-value = 0, which is smaller than the significance level of 0.05. We can conclude that the data doesn't fits the model reasonably well.
+pchisq(4979261,8759, lower.tail=FALSE) #p-value = 0, which is smaller than the significance level of 0.05. We can conclude that the data doesn't fits the model reasonably well.
 
 ```
 
