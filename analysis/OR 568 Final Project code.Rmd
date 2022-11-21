@@ -18,6 +18,9 @@ library(leaps)
 library(caret)
 library(glmnet)
 library(randomForest)
+library(ipred)
+library(rpart)
+library(gbm)
 ```
 
 # Data Cleaning and Pre-processing
@@ -232,13 +235,20 @@ Best subset selection
 
 Best subset selection will be used to verify that the non-statistically significant variable remove will produce the highest adjusted r-square value 
 ```{r}
-reg.fit.best <- regsubsets(log(bikecount)~., df2, nvmax=14)
+reg.fit.best <- regsubsets(log(bikecount)~., df2, nvmax=18)
 reg.summ <- summary(reg.fit.best)
+reg.summ
 ```
 
 ```{r}
-which.max(reg.summ$adjr2)
-#indicating 14 variables will produce the best model before log transformation
+re.sum <- summary(reg.summ)
+data.frame(
+  Adj.R2 = which.max(reg.summ$adjr2),
+  CP = which.min(reg.summ$cp),
+  BIC = which.min(reg.summ$bic)
+)
+
+#According to the adjusted R2, the best model will contain 14 variables, whereas Cp and BIC indicates the best model contains 13 variables. Hence, we want to verify this by conducting cross validation.
 
 ```
 
@@ -257,8 +267,8 @@ predict.regsubsets = function(object, newdata, id, ...){
 Cross validation with k=5
 
 ```{r}
-k=5 
-
+k=
+5
 set.seed(53489)
 
 folds=sample(1:k,nrow(df2),replace=TRUE)
@@ -266,11 +276,11 @@ cv.errors=matrix(NA,k,(ncol(df2)-1), dimnames=list(NULL, paste(1:(ncol(df2)-1)))
 
 # write a for loop that performs cross-validation
 for(j in 1:k){
-  best.fit=regsubsets(log(bikecount)~., data=df2[folds!=j,], nvmax=(ncol(df2)-1))
+  best.fit=regsubsets(bikecount~., data=df2[folds!=j,], nvmax=(ncol(df)-1))
   
-  for(i in 1:(ncol(df)-1)){
+  for(i in 1:(ncol(df2)-1)){
     pred = predict(best.fit, df2[folds==j,], id=i)
-    cv.errors[j,i] = mean( (log(df2$bikecount)[folds==j]-pred)^2 )
+    cv.errors[j,i] = mean( (df2$bikecount[folds==j]-pred)^2 )
   }
 }
 ```
@@ -284,6 +294,8 @@ plot(mean.cv.errors ,type="b")
 ```{r}
 regfit.full=regsubsets(bikecount~.,df2, nvmax = 18) 
 coef(regfit.full,which.min(mean.cv.errors))
+
+#15 variables produces least errors 
 ```
 
 
@@ -297,7 +309,7 @@ Train/test data
 ```{r}
 set.seed(3)
 
-sample <- sample(c(TRUE, FALSE), nrow(df2), replace=TRUE, prob=c(0.8,0.2))
+sample <- sample(c(TRUE, FALSE), nrow(df2), replace=TRUE, prob=c(0.7,0.3))
 train  <- df2[sample, ]
 test   <- df2[!sample, ]
 
@@ -337,7 +349,7 @@ bestlam.lasso # the best lambda
 
 lasso.pred <- predict(model1,s=bestlam.lasso,newx=data.matrix(test[,-1]))
 
-mean((lasso.pred-test$bikecount)^2)
+mean((exp(lasso.pred)-test$bikecount)^2)
 
 (lin_info <- postResample(lasso.pred, test$bikecount))
 ```
@@ -398,6 +410,91 @@ sqrt(mean((test$bikecount - rf.pred)^2))
 ```
 Best performance so far using basic inputs!!
 
+# Boosting
+```{r}
+df3 <- df2[,-1] #boosting model does not accept date format, so we remove it from our data 
+
+sample <- sample(c(TRUE, FALSE), nrow(df3), replace=TRUE, prob=c(0.7,0.3))
+train  <- df3[sample, ]
+test   <- df3[!sample, ]
+```
+
+```{r}
+#training
+set.seed(1)
+
+b.train = gbm(bikecount ~ ., train, distribution = 'gaussian', n.trees = 1000, shrinkage = 0.01)
+summary(b.train)
+```
+
+Temperature and hour has the highest influence in our model, with rel.inf of 35.89 and 29.41
+
+```{r}
+pred = predict(b.train, test, n.trees = 1000, type = 'response')
+pred[1:5]
+
+b.t = predict(b.train, train, n.trees = 1000, type = 'response')
+
+mean((train$bikecount-b.t)^2)
+sqrt(mean((train$bikecount - b.t)^2))
+
+mean((test$bikecount-pred)^2)
+sqrt(mean((test$bikecount - pred)^2))
+```
+Train: 
+MSE- 145717.1
+RMSE- 381.73
+
+Test:
+MSE- 150780.8
+RMSE- 388.31
+
+#Bagging 
+
+```{r}
+#make this example reproducible
+set.seed(1)
+
+#fit the bagged model
+bag <- bagging(
+  formula = bikecount ~ .,
+  data = train,
+  nbagg = 150,   
+  coob = TRUE,
+  control = rpart.control(minsplit = 2, cp = 0)
+)
+
+```
+
+```{r}
+bag
+```
+
+```{r}
+pred = predict(bag, train, type = 'response')
+```
+
+```{r}
+pred.test = predict(bag, test, type = 'response')
+```
+
+```{r}
+mean((train$bikecount-pred)^2)
+sqrt(mean((train$bikecount - b.t)^2))
+
+mean((test$bikecount-pred.test)^2)
+sqrt(mean((test$bikecount - pred.test)^2))
+
+```
+Train:
+MSE- 4267.507
+RMSE- 381.729
+
+Test: 
+MSE- 30807
+RMSE- 175.5192
+
+MSE for bagging is significantly better than boosting for both in-sample and out of sample at 4267.507 for training data, and 30807 for testing data. Bagging has the best performance, beating random forest with RMSE of 175.52
 
 
 Hypothesis testing 
@@ -418,4 +515,6 @@ t.test(bikecount~workhours, data=df2, subset= workhours %in% c(0, 1))
 #h0: bike sharing is more common during non-workhours 
 #h1: bike sharing is more common during workhours 
 ```
+
+
 
