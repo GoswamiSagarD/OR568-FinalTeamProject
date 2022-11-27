@@ -25,7 +25,7 @@ df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
 # renaming the columns
 colnames(df) <- c("date", "bikecount", "hour", "temperature", "humidity", "windspeed", "visibility", "dewpointtemp", "solarradiation", "rainfall", "snowfall", "season", "holiday", "workhours")
 
-df
+head(df)
 ```
 
 ## Data Encoding
@@ -91,7 +91,7 @@ summary(df)
 names(df)
 ```
 
-```{r eval = FALSE, fig.height=9, fig.width=16, message=FALSE, warning=FALSE}
+```{r eval = TRUE, fig.height=9, fig.width=16, message=FALSE, warning=FALSE}
 # This cell takes time to evalute. So, the eval tag is set to FALSE above. If you want to run this cell, run it manually, or set eval=TRUE to run it all the time.
 ggpairs(df[,-c(1)], progress=FALSE)
 ```
