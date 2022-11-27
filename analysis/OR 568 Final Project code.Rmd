@@ -514,5 +514,17 @@ t.test(bikecount~workhours, data=df2, subset= workhours %in% c(0, 1))
 #h0: bike sharing is more common during non-workhours 
 #h1: bike sharing is more common during workhours 
 ```
+```{r}
+#take only winter and summer entries
+df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
 
+# renaming the columns
+colnames(df) <- c("date", "bikecount", "hour", "temperature", "humidity", "windspeed", "visibility", "dewpointtemp", "solarradiation", "rainfall", "snowfall", "season", "holiday", "workhours")
+sea = subset(df, season == 'Winter' | season == 'Summer')
+```
+```{r}
+t.test(bikecount~factor(season), data=sea)
+```
+
+We reject the null hypothesis that the number of bikes used is the same in summer and winter. Based on the means for each group, we can predict that bikes will be used more often in the summer rather than the winter.
 
