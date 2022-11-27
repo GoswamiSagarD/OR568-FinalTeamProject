@@ -2,10 +2,7 @@
 title: "OR 568 Final Project"
 author: "Amy Lovas, Hannah Abraham, Kyle Smith, Sagar Goswami"
 date: "10/29/2022"
-output:
-  pdf_document: default
-  html_document: default
-  word_document: default
+output: html_document
 ---
 
 ```{r message=FALSE, warning=FALSE}
@@ -175,7 +172,6 @@ ggplot(df, aes(x=temperature)) +
   geom_density(adjust = 0.5, fill = "#4682B4") + 
   theme_gray() + 
   facet_wrap(~season) +
-  labs(x= 'Temperature', y= 'Bike Rentals', title='Bike Rentals by Temperature', caption="Temperature is measured in celcius") +
   labs(x= 'Temperature', y= 'Bike Rentals', title='Bike Counts by Temperature', caption="Temperature is measured in celcius") +
   theme(plot.title = element_text(hjust = 0.5, face='bold', size = 18L), plot.caption = element_text(face='italic', size=11))
 
@@ -186,46 +182,18 @@ ggplot(df, aes(x=temperature, y=bikecount)) +
 # bike count based on working/none working hour 
 ggplot(data=df, aes(workhours)) + 
   geom_bar(fill="steelblue", width=0.3) + 
-  labs(x= 'Working Hours', y ="Bike Rentals", title='Bike Rentals by Work/Non-Work Hours') +
-  theme_gray() +
-  theme(plot.title = element_text(hjust = 0.5, face='bold', size=18L))
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Work/Non-Work Hours', caption="0 indicates off work hour, 1 indicates work hour") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
 
 # bike rentals based on holiday/no holiday 
 ggplot(data=df, aes(holiday)) + 
   geom_bar(fill="steelblue", width=0.3) + 
-  labs(x="", y ="Bike Rentals", title='Bike Rentals by Holiday/No Holiday') +
-  theme_gray() +
-  theme(plot.title = element_text(hjust = 0.5, face='bold', size=18L))
-
-
-# bike rentals by month 
-
-#sum bike counts by month/year 
-sum_month <- df2 %>% 
-  group_by(month = floor_date(date, 'month')) %>%
-  summarise(sum_c = sum(bikecount))
-
-#convert to data frame 
-sum_month <- as.data.frame(sum_month)
-
-#bar graph of bike rentals by month 
-ggplot(sum_month, aes(x=month, y=sum_c)) +
-  geom_point() + 
-  geom_line(size = 1, color = "#4682B4", alpha=0.9) +
-  scale_x_date(date_breaks = "1 month", date_labels = "%b") +
-  labs(x="", y = "Bike Rentals", title = "Bike Rental by Month", 
-  caption = "Data: Seoul Bike Sharing") +
-  theme_gray() +
-  theme(plot.title = element_text(size = 18L, 
-  face = "bold", hjust = 0.5))
-  
   labs(x= 'Working Hours', y ="", title='Bike Counts Based on Holiday/No Holiday', caption="0 indicates no holiday, 1 indicates holiday") +
   theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
 
 ggplot(data=df2, aes(x=date, y=bikecount)) + 
   geom_line() + 
   scale_x_date(date_breaks = "1 month", date_labels = "%b")
-
 
 ```
 
@@ -544,7 +512,7 @@ t.test(bikecount~holiday, data=df2, subset= holiday %in% c(0, 1))
 #h1: there is a difference for bike counts between holiday/no holiday  
 ```
 Reject null hypothesis and accept alternative hypothesis 
-
+```
 ```{r}
 #take only winter and summer entries
 df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
@@ -555,28 +523,7 @@ sea = subset(df, season == 'Winter' | season == 'Summer')
 ```
 ```{r}
 t.test(bikecount~factor(season), data=sea)
-
-#We reject the null hypothesis that the number of bikes used is the same in summer and winter. Based on the means for each group, we can predict that bikes will be used more often in the summer rather than the winter.
-
 ```
 
-Measuring model performance 
-```{r}
-model <- c(rep("Linear Regression" , 2) , rep("Random Forest" , 2) , rep("Boosting" , 2) , rep("Bagging" , 2), rep("Deep Learning" , 2))
-sampletype <- rep(c("in-sample" , "out-of-sample") , 5)
-value <- c(453.82, 415.71, 88.35, 195.24, 381.73, 388.31, 381.73, 175.52, 0, 0)
-results <- data.frame(model, sampletype, value)
-
-```
-
-```{r}
-ggplot(results, aes(fill=sampletype, y=value, x=model)) + 
-  geom_bar(position="dodge", stat="identity") + 
-  theme_gray() + 
-  labs(x= '', y= 'RMSE', title='Model Performance by RMSE', caption="Data: Seoul Bike Sharing") +
-  theme(plot.title = element_text(hjust = 0.5, face='bold', size = 18L), plot.caption = element_text(size=11)) + 
-  theme(axis.text.x=element_text(angle=50, hjust=1, size = 10), axis.text.y=element_text(size = 10), axis.title = element_text(size = 10))
-
-
-```
+We reject the null hypothesis that the number of bikes used is the same in summer and winter. Based on the means for each group, we can predict that bikes will be used more often in the summer rather than the winter.
 
