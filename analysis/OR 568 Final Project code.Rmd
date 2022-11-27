@@ -508,6 +508,16 @@ bag <- bagging(
 ```{r}
 bag
 ```
+```{r}
+barplot(order(pred.imp$Overall), 
+        names.arg = row.names(pred.imp))
+```
+```{r}
+pred.imp <- varImp(bag)
+ba <- cbind(newColName = rownames(pred.imp), pred.imp)
+rownames(ba) <- 1:nrow(ba)
+t =baf[order(-Overall),]
+```
 
 ```{r}
 pred = predict(bag, train, type = 'response')
