@@ -400,6 +400,7 @@ rf.count = randomForest(bikecount ~., data= train, type = 'regression')
 ```
 ```{r}
 varImpPlot(rf.count)
+
 ```
 Hour and temperature are the most important, with season and humidity coming up next, but it is clear that hour and temperature are significantly more important. 
 
@@ -424,6 +425,7 @@ set.seed(1)
 
 b.train = gbm(bikecount ~ ., train, distribution = 'gaussian', n.trees = 1000, shrinkage = 0.01)
 summary(b.train)
+
 ```
 
 Temperature and hour has the highest influence in our model, with rel.inf of 35.89 and 29.41
@@ -468,6 +470,21 @@ bag <- bagging(
 ```{r}
 bag
 ```
+```{r}
+pred.imp <- varImp(bag)
+pred.imp
+
+#You can also plot the results
+barplot(order(pred.imp$Overall), 
+        names.arg = row.names(pred.imp))
+```
+```{r}
+ba <- cbind(newColName = rownames(pred.imp), pred.imp)
+rownames(ba) <- 1:nrow(ba)
+t =baf[order(-Overall),]
+barplot(t$Overall, 
+        names.arg = t$newColName, main = 'Bagging Variable Importance', xlab = 'Variable', ylab = 'Importance')
+```
 
 ```{r}
 pred = predict(bag, train, type = 'response')
@@ -498,7 +515,7 @@ MSE for bagging is significantly better than boosting for both in-sample and out
 
 Hypothesis testing 
 ```{r}
-t.test(bikecount~holiday, data=df2, subset= holiday %in% c(0, 1))
+t.test(bikecount~holiday, data=df2)
 
 #h0: no difference between holiday/no holiday for bike counts 
 #h1: there is a difference for bike counts between holiday/no holiday  
@@ -509,7 +526,7 @@ OR
 
 We can consider conducting hypothesis testing on work hours instead of holiday 
 ```{r}
-t.test(bikecount~workhours, data=df2, subset= workhours %in% c(0, 1))
+t.test(bikecount~workhours, data=df)
 
 #h0: bike sharing is more common during non-workhours 
 #h1: bike sharing is more common during workhours 
