@@ -176,6 +176,7 @@ ggplot(df, aes(x=temperature)) +
   theme_gray() + 
   facet_wrap(~season) +
   labs(x= 'Temperature', y= 'Bike Rentals', title='Bike Rentals by Temperature', caption="Temperature is measured in celcius") +
+  labs(x= 'Temperature', y= 'Bike Rentals', title='Bike Counts by Temperature', caption="Temperature is measured in celcius") +
   theme(plot.title = element_text(hjust = 0.5, face='bold', size = 18L), plot.caption = element_text(face='italic', size=11))
 
 # box plot 
@@ -218,6 +219,14 @@ ggplot(sum_month, aes(x=month, y=sum_c)) +
   theme(plot.title = element_text(size = 18L, 
   face = "bold", hjust = 0.5))
   
+  labs(x= 'Working Hours', y ="", title='Bike Counts Based on Holiday/No Holiday', caption="0 indicates no holiday, 1 indicates holiday") +
+  theme(plot.title = element_text(hjust = 0.5), plot.caption = element_text(face='italic', size=10))
+
+ggplot(data=df2, aes(x=date, y=bikecount)) + 
+  geom_line() + 
+  scale_x_date(date_breaks = "1 month", date_labels = "%b")
+
+
 ```
 
 # Data Analysis
@@ -499,6 +508,18 @@ bag <- bagging(
 ```{r}
 bag
 ```
+```{r}
+barplot(order(pred.imp$Overall), 
+        names.arg = row.names(pred.imp))
+```
+```{r}
+pred.imp <- varImp(bag)
+ba <- cbind(newColName = rownames(pred.imp), pred.imp)
+rownames(ba) <- 1:nrow(ba)
+t =ba[order(-Overall),]
+barplot(order(t$Overall), 
+        names.arg = t$newColName)
+```
 
 ```{r}
 pred = predict(bag, train, type = 'response')
@@ -514,7 +535,7 @@ sqrt(mean((train$bikecount - b.t)^2))
 
 mean((test$bikecount-pred.test)^2)
 sqrt(mean((test$bikecount - pred.test)^2))
-
+test$bikecount
 ```
 Train:
 MSE- 4267.507
@@ -535,7 +556,7 @@ t.test(bikecount~holiday, data=df2, subset= holiday %in% c(0, 1))
 #h1: there is a difference for bike counts between holiday/no holiday  
 ```
 Reject null hypothesis and accept alternative hypothesis 
-```
+
 ```{r}
 #take only winter and summer entries
 df<- read.csv(here("data", "SeoulBikeData.csv"), check.names=FALSE)
@@ -546,12 +567,28 @@ sea = subset(df, season == 'Winter' | season == 'Summer')
 ```
 ```{r}
 t.test(bikecount~factor(season), data=sea)
+
+#We reject the null hypothesis that the number of bikes used is the same in summer and winter. Based on the means for each group, we can predict that bikes will be used more often in the summer rather than the winter.
+
 ```
 
-We reject the null hypothesis that the number of bikes used is the same in summer and winter. Based on the means for each group, we can predict that bikes will be used more often in the summer rather than the winter.
+Measuring model performance 
+```{r}
+model <- c(rep("Linear Regression" , 2) , rep("Random Forest" , 2) , rep("Boosting" , 2) , rep("Bagging" , 2), rep("Deep Learning" , 2))
+sampletype <- rep(c("in-sample" , "out-of-sample") , 5)
+value <- c(453.82, 415.71, 88.35, 195.24, 381.73, 388.31, 381.73, 175.52, 0, 0)
+results <- data.frame(model, sampletype, value)
+
+```
 
 ```{r}
+ggplot(results, aes(fill=sampletype, y=value, x=model)) + 
+  geom_bar(position="dodge", stat="identity") + 
+  theme_gray() + 
+  labs(x= '', y= 'RMSE', title='Model Performance by RMSE', caption="Data: Seoul Bike Sharing") +
+  theme(plot.title = element_text(hjust = 0.5, face='bold', size = 18L), plot.caption = element_text(size=11)) + 
+  theme(axis.text.x=element_text(angle=50, hjust=1, size = 10), axis.text.y=element_text(size = 10), axis.title = element_text(size = 10))
+
 
 ```
-
 
