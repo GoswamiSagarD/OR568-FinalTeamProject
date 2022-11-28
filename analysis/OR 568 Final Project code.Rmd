@@ -516,7 +516,9 @@ barplot(order(pred.imp$Overall),
 pred.imp <- varImp(bag)
 ba <- cbind(newColName = rownames(pred.imp), pred.imp)
 rownames(ba) <- 1:nrow(ba)
-t =baf[order(-Overall),]
+t =ba[order(-Overall),]
+barplot(order(t$Overall), 
+        names.arg = t$newColName)
 ```
 
 ```{r}
@@ -533,7 +535,7 @@ sqrt(mean((train$bikecount - b.t)^2))
 
 mean((test$bikecount-pred.test)^2)
 sqrt(mean((test$bikecount - pred.test)^2))
-
+test$bikecount
 ```
 Train:
 MSE- 4267.507
