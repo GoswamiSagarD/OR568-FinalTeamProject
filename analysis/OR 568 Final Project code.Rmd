@@ -315,7 +315,7 @@ cv.errors=matrix(NA,k,(ncol(df2)-1), dimnames=list(NULL, paste(1:(ncol(df2)-1)))
 
 # write a for loop that performs cross-validation
 for(j in 1:k){
-  best.fit=regsubsets(bikecount~., data=df2[folds!=j,], nvmax=(ncol(df)-1))
+  best.fit=regsubsets(bikecount~., data=df2[folds!=j,], nvmax=(ncol(df2)-1))
   
   for(i in 1:(ncol(df2)-1)){
     pred = predict(best.fit, df2[folds==j,], id=i)
@@ -370,27 +370,6 @@ pred.test = predict(lm, test, type = 'response')
 ```{r}
 postResample(exp(pred.test), test$bikecount)
 postResample(exp(pred), train$bikecount)
-```
-
-Lasso (we might not need to conduct lasso regression)
-
-```{r}
-set.seed (3)
-x <- data.matrix(train[,-1])
-y <- data.matrix(train$bikecount) #response variable 
-
-model1<- glmnet(x,y,alpha=1)
-
-cv.out=cv.glmnet(x, y, alpha=1)
-
-bestlam.lasso=cv.out$lambda.min
-bestlam.lasso # the best lambda
-
-lasso.pred <- predict(model1,s=bestlam.lasso,newx=data.matrix(test[,-1]))
-
-mean((exp(lasso.pred)-test$bikecount)^2)
-
-(lin_info <- postResample(lasso.pred, test$bikecount))
 ```
 
 
@@ -576,7 +555,7 @@ Measuring model performance
 ```{r}
 model <- c(rep("Linear Regression" , 2) , rep("Random Forest" , 2) , rep("Boosting" , 2) , rep("Bagging" , 2), rep("Deep Learning" , 2))
 sampletype <- rep(c("in-sample" , "out-of-sample") , 5)
-value <- c(453.82, 415.71, 88.35, 195.24, 381.73, 388.31, 381.73, 175.52, 0, 0)
+value <- c(453.82, 415.71, 88.35, 195.24, 381.73, 388.31, 381.73, 175.52, 57.81, 154.7)
 results <- data.frame(model, sampletype, value)
 
 ```
@@ -587,7 +566,8 @@ ggplot(results, aes(fill=sampletype, y=value, x=model)) +
   theme_gray() + 
   labs(x= '', y= 'RMSE', title='Model Performance by RMSE', caption="Data: Seoul Bike Sharing") +
   theme(plot.title = element_text(hjust = 0.5, face='bold', size = 18L), plot.caption = element_text(size=11)) + 
-  theme(axis.text.x=element_text(angle=50, hjust=1, size = 10), axis.text.y=element_text(size = 10), axis.title = element_text(size = 10))
+  theme(axis.text.x=element_text(angle=50, hjust=1, size = 10), axis.text.y=element_text(size = 10), axis.title = element_text(size = 10)) + 
+  coord_flip()
 
 
 ```
